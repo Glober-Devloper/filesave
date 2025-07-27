@@ -389,7 +389,7 @@ class FileStoreBot:
 
         await update.message.reply_text(
             f"Single Upload Mode ⬆️\n\n"
-            f"Group: {group_name} 📁\n\n"
+            f"Group: {group_name} 📁\n"
             "Send me the file you want to upload.\n"
             "Supported: Photos 📸, Videos 🎬, Documents 📄, Audio 🎵, Voice \n"
             f"Max Size: {format_size(MAX_FILE_SIZE)}",
@@ -489,7 +489,7 @@ class FileStoreBot:
             if update.callback_query:
                 await update.callback_query.edit_message_text("Error loading groups. Please try again. 😔")
             else:
-                await update.message.reply_text("Error loading groups. Please try again. �")
+                await update.message.reply_text("Error loading groups. Please try again. 😔")
 
     async def help_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /help command"""
@@ -625,7 +625,7 @@ Contact Admin: {ADMIN_CONTACT} 👨‍💻"""
             conn.close()
 
         except ValueError:
-            await update.message.reply_text("Invalid user ID format 🔢")
+            await update.message.reply_text("Invalid user ID format �")
         except Exception as e:
             logger.error(f"Remove user error: {e}")
             await update.message.reply_text("Error removing user 😔")
@@ -937,7 +937,7 @@ Contact Admin: {ADMIN_CONTACT} 👨‍💻"""
             logger.error(f"Error getting group link: {e}")
             await update.message.reply_text("An error occurred while getting the group link. Please try again. 😔")
 
-    async def _execute_revoke_link(self, update: Update, link_code: str, user_id: int):
+    async def _execute_revoke_link(self, message: Message, link_code: str, user_id: int):
         """Helper to execute link revocation logic."""
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -950,7 +950,7 @@ Contact Admin: {ADMIN_CONTACT} 👨‍💻"""
 
             if not link_info:
                 logger.info(f"Revocation failed: Link '{link_code}' not found or already inactive.")
-                await update.effective_message.reply_text(f"Link '{link_code}' not found or already inactive. 🤷‍♂️")
+                await message.reply_text(f"Link '{link_code}' not found or already inactive. 🤷‍♂️")
                 conn.close()
                 return
 
@@ -959,7 +959,7 @@ Contact Admin: {ADMIN_CONTACT} 👨‍💻"""
             # Only allow owner or admin to revoke
             if link_owner_id != user_id and not is_admin(user_id):
                 logger.warning(f"Unauthorized revocation attempt: User {user_id} tried to revoke link {link_code} owned by {link_owner_id}.")
-                await update.effective_message.reply_text("You can only revoke your own links unless you are an admin. 🚫")
+                await message.reply_text("You can only revoke your own links unless you are an admin. 🚫")
                 conn.close()
                 return
 
@@ -971,13 +971,13 @@ Contact Admin: {ADMIN_CONTACT} 👨‍💻"""
             conn.close()
 
             logger.info(f"Link '{link_code}' (ID: {link_db_id}) successfully revoked by user {user_id}.")
-            await update.effective_message.reply_text(
+            await message.reply_text(
                 f"Link '{link_code}' has been successfully revoked. ✅\n"
                 "It can no longer be used to access files."
             )
         except Exception as e:
             logger.error(f"Error executing link revocation for {link_code}: {e}")
-            await update.effective_message.reply_text("An error occurred while revoking the link. Please try again. 😔")
+            await message.reply_text("An error occurred while revoking the link. Please try again. 😔")
 
     async def revoke_link_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /revokelink command to invalidate a specific link."""
@@ -996,7 +996,7 @@ Contact Admin: {ADMIN_CONTACT} 👨‍💻"""
 
         link_code = context.args[0]
         user_id = update.effective_user.id
-        await self._execute_revoke_link(update, link_code, user_id)
+        await self._execute_revoke_link(update.effective_message, link_code, user_id)
 
 
     # ================= FILE HANDLER WITH ACTUAL PROCESSING =================
@@ -1223,21 +1223,16 @@ Contact Admin: {ADMIN_CONTACT} 👨‍💻"""
             elif data.startswith("confirm_delete_group_"):
                 await self._execute_delete_group(query, data)
 
-            # NEW: Handle revoke group link from button
+            # Handle revoke group link from button
             elif data.startswith("revoke_group_link_"):
                 link_code = data.split("_")[-1]
-                # Create a dummy Update object for the helper function to ensure it has effective_message
-                dummy_update = Update(update_id=update.update_id)
-                dummy_update.effective_message = query.message
-                dummy_update.effective_user = query.from_user
-                await self._execute_revoke_link(dummy_update, link_code, user_id)
-            # NEW: Handle revoke file link from button (previously only group was caught)
+                # Pass query.message directly as it's the message associated with the callback
+                await self._execute_revoke_link(query.message, link_code, user_id)
+            # Handle revoke file link from button
             elif data.startswith("revoke_file_link_"):
                 link_code = data.split("_")[-1]
-                dummy_update = Update(update_id=update.update_id)
-                dummy_update.effective_message = query.message
-                dummy_update.effective_user = query.from_user
-                await self._execute_revoke_link(dummy_update, link_code, user_id)
+                # Pass query.message directly as it's the message associated with the callback
+                await self._execute_revoke_link(query.message, link_code, user_id)
 
             else:
                 await query.edit_message_text(
