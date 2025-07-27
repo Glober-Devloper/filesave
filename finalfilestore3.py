@@ -477,7 +477,7 @@ class FileStoreBot:
                         InlineKeyboardButton("Get Link 🔗", callback_data=f"link_group_id_{group_id}")
                     ])
 
-            keyboard.append([InlineKeyboardButton("Main Menu �", callback_data="main_menu")])
+            keyboard.append([InlineKeyboardButton("Main Menu 🏠", callback_data="main_menu")])
 
             if update.callback_query:
                 await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -2761,9 +2761,9 @@ Files in this group (first 10):"""
 
             keyboard = [
                 [InlineKeyboardButton("List All Files 📜", callback_data=f"list_files_group_{group_id}")],
-                [InlineKeyboardButton("Add More Files ➕", callback_data=f"add_files_to_group_{group_id}")],
+                [InlineKeyboardButton("Add More Files ➕", callback_data=f"add_files_to_group_{group_id})")],
                 [InlineKeyboardButton("Get Group Link 🔗", callback_data=f"gen_group_link_{group_id}")],
-                [InlineKeyboardButton("Delete Group 💥", callback_data=f"delete_group_id_{group_id}")],
+                [InlineKeyboardButton("Delete Group 💥", callback_data=f"delete_group_id_{group_id})")],
             ]
 
             # Add revoke button if a group link exists
@@ -2823,7 +2823,7 @@ Files in this group (first 10):"""
             share_link = f"https://t.me/{BOT_USERNAME}?start={link_code}"
             keyboard = [
                 [InlineKeyboardButton("Share Group 🔗", url=share_link)],
-                [InlineKeyboardButton("View Group Details ℹ️", callback_data=f"view_group_id_{group_id}")],
+                [InlineKeyboardButton("View Group Details ℹ️", callback_data=f"view_group_id_{group_id})")],
                 [InlineKeyboardButton("My Groups 📂", callback_data="cmd_groups")]
             ]
 
@@ -2870,7 +2870,7 @@ Files in this group (first 10):"""
             if not files:
                 await query.edit_message_text(f"Group '{group_name}' has no files. 🤷‍♂️",
                                               reply_markup=InlineKeyboardMarkup([
-                                                  [InlineKeyboardButton("View Group Details ℹ️", callback_data=f"view_group_id_{group_id}")],
+                                                  [InlineKeyboardButton("View Group Details ℹ️", callback_data=f"view_group_id_{group_id})")],
                                                   [InlineKeyboardButton("My Groups 📂", callback_data="cmd_groups")]
                                               ])
                                              )
@@ -2963,7 +2963,7 @@ File Link: {file_link_text}"""
             keyboard = [
                 share_button, # This will be empty if no link, so safe
                 [InlineKeyboardButton("Delete File 🗑️", callback_data=f"delete_file_{file_id}")],
-                [InlineKeyboardButton("Back to Group Files 📜", callback_data=f"list_files_group_{group_id}")],
+                [InlineKeyboardButton("Back to Group Files 📜", callback_data=f"list_files_group_{group_id})")],
                 [InlineKeyboardButton("Main Menu 🏠", callback_data="main_menu")]
             ]
             keyboard = [row for row in keyboard if row] # Remove empty sublists
@@ -2996,7 +2996,7 @@ File Link: {file_link_text}"""
                     "This action cannot be undone. ⚠️",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("Yes, Delete File ✅", callback_data=f"confirm_delete_file_{file_id_to_delete}")],
-                        [InlineKeyboardButton("No, Cancel ❌", callback_data=f"view_file_id_{file_id_to_delete}")]
+                        [InlineKeyboardButton("No, Cancel ❌", callback_data=f"view_file_id_{file_id_to_delete})")]
                     ])
                 )
             else:
@@ -3049,7 +3049,7 @@ File Link: {file_link_text}"""
 
                 await query.edit_message_text(
                     f"File '{file_name}' deleted successfully! ✅",
-                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Back to Group Files 📜", callback_data=f"list_files_group_{group_id}")]])
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Back to Group Files 📜", callback_data=f"list_files_group_{group_id})")]])
                 )
             else:
                 conn.close()
@@ -3079,7 +3079,7 @@ File Link: {file_link_text}"""
                     "This action cannot be undone. ⚠️",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("Yes, Delete Group ✅", callback_data=f"confirm_delete_group_{group_id_to_delete}")],
-                        [InlineKeyboardButton("No, Cancel ❌", callback_data=f"view_group_id_{group_id_to_delete}")]
+                        [InlineKeyboardButton("No, Cancel ❌", callback_data=f"view_group_id_{group_id_to_delete})")]
                     ])
                 )
             else:
@@ -3236,15 +3236,11 @@ def main():
     logger.info("Configuration validated successfully!")
 
     try:
-        # Create application without job_queue argument in build()
-        application = ApplicationBuilder().token(BOT_TOKEN).build()
-
-        # Manually create and attach JobQueue
-        # IMPORTANT FIX: JobQueue is initialized without arguments, then set_application is called.
+        # Manually create JobQueue instance
         job_queue = JobQueue()
-        job_queue.set_application(application) # Link the job_queue to the application
-        application.job_queue = job_queue # Assign the job_queue to the application instance
-        job_queue.start() # Start the job queue explicitly
+
+        # Create application and pass the job_queue instance directly
+        application = ApplicationBuilder().token(BOT_TOKEN).job_queue(job_queue).build()
 
         # Initialize bot
         bot = FileStoreBot(application)
