@@ -489,7 +489,7 @@ class FileStoreBot:
             if update.callback_query:
                 await update.callback_query.edit_message_text("Error loading groups. Please try again. 😔")
             else:
-                await update.message.reply_text("Error loading groups. Please try again. 😔")
+                await update.message.reply_text("Error loading groups. Please try again. �")
 
     async def help_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /help command"""
@@ -528,7 +528,7 @@ Admin Commands 👑:
         help_text += f"""
 
 Supported Files:
-Photos 📸, Videos 🎬, Documents 📄, Audio 🎵, Voice 🎤 (up to {format_size(MAX_FILE_SIZE)})
+Photos 📸, Videos 🎬, Documents 📄, Audio 🎵, Voice  (up to {format_size(MAX_FILE_SIZE)})
 
 Branding: All files include {custom_caption}
 
@@ -1227,6 +1227,13 @@ Contact Admin: {ADMIN_CONTACT} 👨‍💻"""
             elif data.startswith("revoke_group_link_"):
                 link_code = data.split("_")[-1]
                 # Create a dummy Update object for the helper function to ensure it has effective_message
+                dummy_update = Update(update_id=update.update_id)
+                dummy_update.effective_message = query.message
+                dummy_update.effective_user = query.from_user
+                await self._execute_revoke_link(dummy_update, link_code, user_id)
+            # NEW: Handle revoke file link from button (previously only group was caught)
+            elif data.startswith("revoke_file_link_"):
+                link_code = data.split("_")[-1]
                 dummy_update = Update(update_id=update.update_id)
                 dummy_update.effective_message = query.message
                 dummy_update.effective_user = query.from_user
@@ -2188,11 +2195,14 @@ Settings:
             keyboard = [] # Fixed: Initialize keyboard here
             for link_code, link_type, clicks, created_at, file_name, group_name in links:
                 name = file_name if link_type == "file" else group_name
+                # Determine the correct callback prefix based on link_type
+                callback_prefix = "revoke_file_link" if link_type == "file" else "revoke_group_link"
+                
                 text += f"{link_type.title()}: {name[:20]}{'...' if len(name or '') > 20 else ''}\n"
                 text += f"Clicks: {clicks} | Created: {created_at[:10]}\n"
                 text += f"Link: https://t.me/{BOT_USERNAME}?start={link_code}\n"
-                # Add a revoke button for each link in this view
-                keyboard.append([InlineKeyboardButton(f"Revoke {name[:15]} 🚫", callback_data=f"revoke_group_link_{link_code}")]) # Reusing revoke_group_link_ for simplicity, it handles both types
+                # Add a revoke button for each link in this view with the correct callback_data
+                keyboard.append([InlineKeyboardButton(f"Revoke {name[:15]} 🚫", callback_data=f"{callback_prefix}_{link_code}")])
 
             keyboard.append([InlineKeyboardButton("Refresh 🔄", callback_data="cmd_links")])
             keyboard.append([InlineKeyboardButton("Main Menu 🏠", callback_data="main_menu")])
@@ -2595,7 +2605,7 @@ Added At: {added_at[:16]}""" # Slice for cleaner timestamp
 
                 keyboard = [
                     [InlineKeyboardButton("Toggle Caption ✍️", callback_data=f"toggle_user_caption_{user_id}")],
-                    [InlineKeyboardButton("Remove User ➖", callback_data=f"remove_user_{user_id})")],
+                    [InlineKeyboardButton("Remove User ➖", callback_data=f"remove_user_{user_id}")],
                     [InlineKeyboardButton("User Management 👥", callback_data="user_management")]
                 ]
                 await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -2761,9 +2771,9 @@ Files in this group (first 10):"""
 
             keyboard = [
                 [InlineKeyboardButton("List All Files 📜", callback_data=f"list_files_group_{group_id}")],
-                [InlineKeyboardButton("Add More Files ➕", callback_data=f"add_files_to_group_{group_id})")],
+                [InlineKeyboardButton("Add More Files ➕", callback_data=f"add_files_to_group_{group_id}")],
                 [InlineKeyboardButton("Get Group Link 🔗", callback_data=f"gen_group_link_{group_id}")],
-                [InlineKeyboardButton("Delete Group 💥", callback_data=f"delete_group_id_{group_id})")],
+                [InlineKeyboardButton("Delete Group 💥", callback_data=f"delete_group_id_{group_id}")],
             ]
 
             # Add revoke button if a group link exists
@@ -2823,7 +2833,7 @@ Files in this group (first 10):"""
             share_link = f"https://t.me/{BOT_USERNAME}?start={link_code}"
             keyboard = [
                 [InlineKeyboardButton("Share Group 🔗", url=share_link)],
-                [InlineKeyboardButton("View Group Details ℹ️", callback_data=f"view_group_id_{group_id})")],
+                [InlineKeyboardButton("View Group Details ℹ️", callback_data=f"view_group_id_{group_id}")],
                 [InlineKeyboardButton("My Groups 📂", callback_data="cmd_groups")]
             ]
 
@@ -2870,7 +2880,7 @@ Files in this group (first 10):"""
             if not files:
                 await query.edit_message_text(f"Group '{group_name}' has no files. 🤷‍♂️",
                                               reply_markup=InlineKeyboardMarkup([
-                                                  [InlineKeyboardButton("View Group Details ℹ️", callback_data=f"view_group_id_{group_id})")],
+                                                  [InlineKeyboardButton("View Group Details ℹ️", callback_data=f"view_group_id_{group_id}")],
                                                   [InlineKeyboardButton("My Groups 📂", callback_data="cmd_groups")]
                                               ])
                                              )
@@ -2883,7 +2893,7 @@ Files in this group (first 10):"""
                 keyboard.append([InlineKeyboardButton(f"#{serial_number:03d} {file_name[:25]}", callback_data=f"view_file_id_{file_id}")])
 
             keyboard.append([
-                InlineKeyboardButton("View Group Details ℹ️", callback_data=f"view_group_id_{group_id})"),
+                InlineKeyboardButton("View Group Details ℹ️", callback_data=f"view_group_id_{group_id}"),
                 InlineKeyboardButton("My Groups 📂", callback_data="cmd_groups")
             ])
 
@@ -2963,7 +2973,7 @@ File Link: {file_link_text}"""
             keyboard = [
                 share_button, # This will be empty if no link, so safe
                 [InlineKeyboardButton("Delete File 🗑️", callback_data=f"delete_file_{file_id}")],
-                [InlineKeyboardButton("Back to Group Files 📜", callback_data=f"list_files_group_{group_id})")],
+                [InlineKeyboardButton("Back to Group Files 📜", callback_data=f"list_files_group_{group_id}")],
                 [InlineKeyboardButton("Main Menu 🏠", callback_data="main_menu")]
             ]
             keyboard = [row for row in keyboard if row] # Remove empty sublists
@@ -2996,7 +3006,7 @@ File Link: {file_link_text}"""
                     "This action cannot be undone. ⚠️",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("Yes, Delete File ✅", callback_data=f"confirm_delete_file_{file_id_to_delete}")],
-                        [InlineKeyboardButton("No, Cancel ❌", callback_data=f"view_file_id_{file_id_to_delete})")]
+                        [InlineKeyboardButton("No, Cancel ❌", callback_data=f"view_file_id_{file_id_to_delete}")]
                     ])
                 )
             else:
@@ -3049,7 +3059,7 @@ File Link: {file_link_text}"""
 
                 await query.edit_message_text(
                     f"File '{file_name}' deleted successfully! ✅",
-                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Back to Group Files 📜", callback_data=f"list_files_group_{group_id})")]])
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Back to Group Files 📜", callback_data=f"list_files_group_{group_id}")]])
                 )
             else:
                 conn.close()
@@ -3079,7 +3089,7 @@ File Link: {file_link_text}"""
                     "This action cannot be undone. ⚠️",
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("Yes, Delete Group ✅", callback_data=f"confirm_delete_group_{group_id_to_delete}")],
-                        [InlineKeyboardButton("No, Cancel ❌", callback_data=f"view_group_id_{group_id_to_delete})")]
+                        [InlineKeyboardButton("No, Cancel ❌", callback_data=f"view_group_id_{group_id_to_delete}")]
                     ])
                 )
             else:
